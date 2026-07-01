@@ -1,6 +1,123 @@
-pandas
-matplotlib
-seaborn
-pillow
-tabulate
- 
+# IU X-ray Dataset — Exploratory Data Analysis
+
+Exploratory analysis of the **Indiana University Chest X-ray Collection (IU X-ray)**, a public dataset of paired chest X-ray images and free-text radiology reports. This is the first stage of a multimodal radiology pipeline combining vision and clinical text for downstream classification and report generation.
+
+---
+
+## Dataset
+
+| Property | Detail |
+|---|---|
+| Source | Indiana University / NIH Open-i |
+| Annotation file | `annotation.json` |
+| Splits | `train`, `val`, `test` |
+| Total reports | ~3,955 |
+| Total images | ~7,470 |
+| Image format | PNG (grayscale chest X-rays) |
+| Report format | Single free-text string per patient |
+
+**Schema — each entry in `annotation.json`:**
+
+```json
+{
+  "id": "CXR2384_IM-0942",
+  "image_path": ["CXR2384_IM-0942/0.png", "CXR2384_IM-0942/1.png"],
+  "report": "The heart size and pulmonary vascularity appear within normal limits ...",
+  "split": "train"
+}
+```
+
+Images are stored under `images/<id>/<index>.png` relative to the dataset root.
+
+---
+
+## Notebook contents
+
+`notebooks/iu_xray_eda.ipynb` — 11 sections:
+
+| # | Section | What it does |
+|---|---|---|
+| 1 | Imports and configuration | Sets `DATA_ROOT`, loads libraries |
+| 2 | Load and flatten | Reads `annotation.json`, builds a flat DataFrame |
+| 3 | Split sizes | Bar chart of train / val / test counts |
+| 4 | Images per patient | Distribution of 1 vs 2 vs 3 images per patient |
+| 5 | Report completeness | Counts missing or empty report fields |
+| 6 | Report text length | Word count and character count distributions |
+| 7 | Length by split | KDE overlay comparing report length across splits |
+| 8 | Keyword frequency | Word-match counts for 20 clinical finding terms |
+| 9 | Top content words | Top 25 words after stopword removal |
+| 10 | Sample image preview | Displays 4 example chest X-rays from the train split |
+| 11 | Summary and next steps | Key findings and modeling implications |
+
+---
+
+## Setup
+
+```bash
+pip install pandas matplotlib seaborn pillow
+```
+
+No other dependencies. The notebook uses only standard scientific Python libraries.
+
+---
+
+## Usage
+
+1. Clone or download this repo
+2. Open `notebooks/iu_xray_eda.ipynb` in Jupyter
+3. Set `DATA_ROOT` in cell 1 to your local dataset path:
+
+```python
+DATA_ROOT = Path("/path/to/iu_xray")
+```
+
+4. Run All (`Kernel → Restart & Run All`)
+
+Expected directory layout:
+
+```
+/path/to/iu_xray/
+    annotation.json
+    images/
+        CXR2384_IM-0942/
+            0.png
+            1.png
+        CXR2926_IM-1328/
+            0.png
+            ...
+```
+
+---
+
+## Key findings
+
+- **No multi-label ground truth.** IU X-ray ships free-text reports only. Labels must be derived via a rule-based labeler (e.g. CheXpert-style) applied to the report text before training a classifier.
+- **Most patients have 2 images** (frontal + lateral). A minority have 1 or 3. Train/val/test splits must be done at the patient (`id`) level to avoid data leakage across images from the same patient.
+- **Report text is moderately short** (~30–60 words typically), clinically dense, and suitable for a pretrained clinical text encoder such as ClinicalBERT or BioBERT.
+- **Class imbalance is significant.** Cardiomegaly, pleural effusion, and "no acute finding" dominate; rarer conditions such as pneumothorax and nodules are infrequent. This will require class-weighted loss or oversampling in downstream training.
+
+---
+
+## Next steps
+
+1. Apply rule-based labeler to report text to produce multi-label targets
+2. Build patient-level `Dataset` / `DataLoader` (image + report → label)
+3. Train vision-only baseline (ResNet or ViT on X-ray images)
+4. Train text-only baseline (ClinicalBERT on report text)
+5. Design and train multimodal fusion model (cross-attention or late fusion)
+
+---
+
+## Project context
+
+This EDA notebook is part of a larger multimodal medical imaging research portfolio targeting radiology + clinical text fusion. The full pipeline will combine a vision encoder and a clinical text encoder with a fusion module, trained and evaluated on this dataset.
+
+---
+
+## Citation
+
+```
+Demner-Fushman D, Kohli MD, Rosenman MB, Shooshan SE, Rodriguez L, Antani S,
+Thoma GR, McDonald CJ. Preparing a collection of radiology examinations for
+distribution and retrieval. JAMIA. 2016;23(2):304-310.
+```
